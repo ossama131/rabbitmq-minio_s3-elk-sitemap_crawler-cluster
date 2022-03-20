@@ -61,11 +61,11 @@ except Exception as e:
 
 #Queue declaration
 try:
-    input_consumer_channel.queue_declare(queue=input_queue, durable=True, arguments={'x-queue-mode': 'lazy'})
+    input_consumer_channel.queue_declare(queue=input_queue, durable=True)
     input_consumer_channel.basic_qos(prefetch_count=prefetch_count)
 
-    output_producer_channel.queue_declare(queue=output_queue, durable=True, arguments={'x-queue-mode': 'lazy'})
-    logs_producer_channel.queue_declare(queue=logs_queue, durable=True, arguments={'x-queue-mode': 'lazy'})
+    output_producer_channel.queue_declare(queue=output_queue, durable=True)
+    logs_producer_channel.queue_declare(queue=logs_queue, durable=True)
 except Exception as e:
     raise RuntimeError(e)
 
