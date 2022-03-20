@@ -23,7 +23,7 @@ services:
       - 9000:9000
       - 9001:9001
     env_file:
-      - env/minio.env
+      - ./services/minio/env/minio.env
     command: server /data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
@@ -31,7 +31,7 @@ services:
       timeout: 20s
       retries: 5
     volumes:
-      - ./data:/data
+      - ./services/minio/data:/data
     restart: always
     depends_on:
       rabbitmq:
