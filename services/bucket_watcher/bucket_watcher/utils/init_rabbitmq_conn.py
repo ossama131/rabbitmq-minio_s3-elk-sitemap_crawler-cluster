@@ -53,7 +53,7 @@ try:
                     queue=queue_name)
     consumer_channel.basic_qos(prefetch_count=prefetch_count)
 
-    producer_channel.queue_declare(queue=input_queue, durable=True, arguments={'x-queue-mode': 'lazy'})
+    producer_channel.queue_declare(queue=input_queue, durable=True)
 
 except Exception as e:
     raise RuntimeError(e)
