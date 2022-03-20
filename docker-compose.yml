@@ -1,0 +1,113 @@
+version: '3.9'
+
+services:
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    #container_name: rabbitmq
+    command: rabbitmq-server
+    ports:
+      - 5672:5672 #amqp
+      - 15672:15672 #http
+      - 15692:15692  #prometheus
+    healthcheck:
+      test: [ "CMD", "rabbitmqctl", "status"]
+      interval: 5s
+      timeout: 20s
+      retries: 5
+
+  minio:
+    image: minio/minio
+    #container_name: minio
+    ports:
+      - 9000:9000
+      - 9001:9001
+    env_file:
+      - env/minio.env
+    command: server /data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 20s
+      timeout: 20s
+      retries: 5
+    volumes:
+      - ./data:/data
+    restart: always
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+
+  bucket_watcher:
+    image: bucket_watcher
+    #container_name: bucket_watcher
+    env_file:
+      - services/bucket_watcher/env/bucket_watcher.env
+    restart: always
+    build:
+      context: ./services/bucket_watcher/
+      dockerfile: Dockerfile
+    
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+
+  sitemap_crawler:
+    image: sitemap_crawler
+    #container_name: sitemap_crawler
+    env_file:
+      - services/sitemap_crawler/env/crawler.env
+    restart: always
+    build:
+      context: ./services/sitemap_crawler/
+      dockerfile: Dockerfile
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  elasticsearch:
+    build:
+      context: ./services/elk/elasticsearch/
+    volumes:
+      - ./services/elk/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro,z
+      - ./services/elk/elasticsearch/:/usr/share/elasticsearch/data:z
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      ES_JAVA_OPTS: "-Xms1g -Xmx1g"
+      ELASTIC_PASSWORD: elastic
+
+  logstash:
+    build:
+      context: ./services/elk/logstash/
+    volumes:
+      - ./services/elk/logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro,Z
+      - ./services/elk/logstash/pipeline:/usr/share/logstash/pipeline:ro,Z
+    ports:
+      - "5000:5000"
+      - "9600:9600"
+    environment:
+      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_started
+
+  kibana:
+    build:
+      context: ./services/elk/kibana/
+    volumes:
+      - ./services/elk/kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro,Z
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
